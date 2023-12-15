@@ -1,5 +1,6 @@
 package br.com.edsoncosta.webfluxcourse.controller.exceptions;
 
+import br.com.edsoncosta.webfluxcourse.service.exception.ObjectNotFoundException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Mono;
 
 import static java.time.LocalDateTime.now;
+import static org.springframework.http.HttpStatus.*;
 
 @ControllerAdvice
 public class ControllerExceptionHandler {
@@ -26,8 +28,8 @@ public class ControllerExceptionHandler {
                                 StandardError
                                         .builder()
                                         .timestamp(now())
-                                        .status(HttpStatus.BAD_REQUEST.value())
-                                        .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                        .status(BAD_REQUEST.value())
+                                        .error(BAD_REQUEST.getReasonPhrase())
                                         .message(verifyDupKey(ex.getMessage()))
                                         .path(request.getPath().toString())
                                         .build())
@@ -39,7 +41,7 @@ public class ControllerExceptionHandler {
         ValidationError error = new ValidationError(
                 now(),
                 request.getPath().toString(),
-                HttpStatus.BAD_REQUEST.value(),
+                BAD_REQUEST.value(),
                 "Validation error",
                 "Error on validation attributes"
 
@@ -47,7 +49,26 @@ public class ControllerExceptionHandler {
         for (FieldError x : ex.getBindingResult().getFieldErrors()) {
             error.addError(x.getField(), x.getDefaultMessage());
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Mono.just(error));
+        return ResponseEntity.status(BAD_REQUEST).body(Mono.just(error));
+    }
+
+    @ExceptionHandler(ObjectNotFoundException.class)
+    ResponseEntity<Mono<StandardError>> objectNotFoundException(
+            ObjectNotFoundException ex,
+            ServerHttpRequest request
+    ) {
+        return ResponseEntity.status(NOT_FOUND)
+                .body(
+                        Mono.just(
+                                StandardError
+                                        .builder()
+                                        .timestamp(now())
+                                        .status(NOT_FOUND.value())
+                                        .error(NOT_FOUND.getReasonPhrase())
+                                        .message(ex.getMessage())
+                                        .path(request.getPath().toString())
+                                        .build())
+                );
     }
 
     private String verifyDupKey(String message) {
